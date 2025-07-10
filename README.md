@@ -1,5 +1,5 @@
 # Bilibili AI VTuber System (Open-Source Edition)
-
+# B站AI虚拟主播系统
 > Realtime bilibili live-room assistant powered by LLM + TTS. Listens to danmaku, generates AI replies, speaks with Edge-TTS, and can play background music or on-demand songs.
 
 ---
