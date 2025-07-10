@@ -1,0 +1,16 @@
+pygame
+edge-tts
+openai>=1.14
+aiohttp
+Brotli==1.0.9
+requests>=2.32.0
+numpy
+gtts
+zstandard
+six
+urllib3>=2.0
+blive
+bilibili-live
+PyYAML>=6.0
+qrcode
+google-generativeai>=0.3.0

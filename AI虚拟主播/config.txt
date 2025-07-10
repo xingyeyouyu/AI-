@@ -1,0 +1,83 @@
+[DEFAULT]
+room_id =               #你的直播间房间名
+deepseek.api_key = 
+set = "你是虚拟主播星野酱，你会对用户的输入做出可爱的回应，25字以内，尽可能简洁"  # AI的预设
+owner_uid =            #你的B站uid
+owner_name =        #你的B站用户名
+self.username = 
+auto_send = yes  #是否自动获取表情发送，默认是yes
+preset_file = <YOUR_PRESET.yml>
+
+[COOKIES]
+SESSDATA = <SESSDATA>
+bili_jct = <BILI_JCT>
+DedeUserID = <UID>
+DedeUserID__ckMd5 = <CKMD5>
+sid = <SID>
+buvid3 = <BUVID3>
+buvid4 = <BUVID4>
+api.base_url = https://api.deepseek.com/v1
+
+model.name = deepseek-chat
+
+[NETWORK]
+# proxy = http://127.0.0.1:7890
+# 以上参数均可在浏览器获得, 例如：cookies可以在edge浏览器的设置里面的cookie页面的bilibili.cn里面获取，api key在deepseek官网获取
+# 以下可以通过去掉"#"来填写。
+# LLM 适配器示例 ↓↓↓
+# llm.order = deepseek,gemini,openai
+# gemini.enable = yes
+# gemini.api_key = YOUR_GEMINI_KEY
+# gemini.model = gemini-pro
+
+# Claude (Anthropic) 示例 ↓↓↓
+# claude.enable = yes
+# claude.api_key = YOUR_CLAUDE_KEY
+# claude.model = claude-3-sonnet-20240229
+
+# Local OpenAI 兼容示例 ↓↓↓
+# local.enable = yes
+# local.endpoint = http://127.0.0.1:8000
+# local.model = local-model
+
+# deepseek.proxy = http://127.0.0.1:7890
+
+# openai.enable = yes
+# openai.api_key = YOUR_OPENAI_KEY
+# openai.model = gpt-3.5-turbo
+# openai.proxy = http://127.0.0.1:7890
+
+# gemini.proxy = http://127.0.0.1:7890
+# claude.proxy = http://127.0.0.1:7890
+# local.proxy = http://127.0.0.1:7890
+
+# ---------------------------------------
+# 背景音乐配置（可选）
+# ---------------------------------------
+[MUSIC]
+# 背景纯音乐歌单 ID 或完整链接
+bgm_playlist_id = 19723756
+
+# 背景音乐音量 (0.0-1.0)
+bgm_volume = 0.10
+
+# ---------------- TTS 配置 ----------------
+[TTS]
+provider = edge
+# url = https://dfsteve-vits-simple-api.hf.space/voice/vits
+# speaker_id = 0
+# format = mp3
+# noise = 0.33
+# noisew = 0.4
+
+# bert-vits (本地或远程 HTTP) 示例
+# provider   = bertvits
+# url        = http://127.0.0.1:23456/voice/bert-vits2
+# speaker_id = 0
+
+# ---------------- LLM / Gemini 配置 ----------------
+llm.order = gemini,deepseek,openai,claude,local
+
+gemini.api_key = sk-8RTfanzLDNzHfA2jq7OVbSyqXS1kKIQgwVlKArRE5vErdOHC
+# gemini.model = gemini-pro
+# gemini.proxy = http://127.0.0.1:7890
