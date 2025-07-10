@@ -23,7 +23,7 @@
 ```bash
 # 1. 克隆仓库
 $ git clone https://github.com/yourname/ai-vtuber-2025.git
-$ cd ai-vtuber-2025/KAGUYA/…/tts3
+
 
 # 2. 安装依赖 (Python 3.9+)
 $ python -m pip install -r requirements.txt
@@ -56,7 +56,7 @@ sample_2025_ultimate.py  # 主程序（建议直接运行此文件）
 config.txt            # 配置文件（请自行填写）
 requirements.txt      # Python 依赖
 preset_loader.py      # YAML 角色加载器
-catgirl.yml | girl.yml | Nacho猫.yml   # 角色预设
+catgirl.yml           # 角色预设
 music_login.py        # 网易云扫码登录
 overlay_server.py     # 字幕 WebSocket 服务器
 blive_patcher.py      # UA+Cookie 修补，绕过 412
