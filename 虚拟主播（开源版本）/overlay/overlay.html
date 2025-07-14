@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>AI Subtitle Overlay</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="txt"></div>
+  <script>
+    const txt = document.getElementById('txt');
+    // 队列用于分段显示
+    const queue = [];
+    let displaying = false;
+
+    function splitMessage(msg) {
+      // 规则1: 括号+后续文字  (动作)内容
+      const segments = [];
+      const regex = /[（\(][^）\)]+[）\)][^（\(]*/g;
+      let m;
+      while ((m = regex.exec(msg)) !== null) {
+        const seg = m[0].trim();
+        if (seg) segments.push(seg);
+      }
+      // 若未按括号匹配，则整体分块，每 25 字一段
+      if (segments.length === 0) {
+        const step = 25;
+        for (let i = 0; i < msg.length; i += step) {
+          segments.push(msg.slice(i, i + step));
+        }
+      }
+      return segments;
+    }
+
+    function displayNext() {
+      if (queue.length === 0) {
+        txt.textContent = "";
+        displaying = false;
+        return;
+      }
+      displaying = true;
+      txt.textContent = queue.shift();
+      // 根据阅读速度约 6 字/秒 计算时长，限制 2~10 秒
+      const duration = Math.min(10000, Math.max(2000, (txt.textContent.length / 6) * 1000));
+      setTimeout(displayNext, duration);
+    }
+
+    const ws = new WebSocket('ws://127.0.0.1:8765/ws');
+    ws.onmessage = e => {
+      const parts = splitMessage(e.data);
+      queue.push(...parts);
+      if (!displaying) displayNext();
+    };
+    ws.onclose = () => setTimeout(() => location.reload(), 2000);
+  </script>
+</body>
+</html> 

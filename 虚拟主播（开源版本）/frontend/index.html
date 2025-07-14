@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>虚拟主播配置面板</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-image: url('/static/19AEEF2E91FDDF218D641CBD792125E4.jpg');
+      background-size: cover;
+      background-attachment: fixed;
+      background-position: center;
+    }
+    .container {
+      background-color: rgba(255, 255, 255, 0.4);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
+    .config-section {
+      background-color: rgba(248, 249, 250, 0.5);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 4px solid #0d6efd;
+    }
+    .section-title {
+      margin-bottom: 15px;
+      color: #0d6efd;
+      text-shadow: 0px 0px 3px #ffffff;
+    }
+    
+    /* 增强表单文本可读性 */
+    .form-label {
+      font-weight: bold;
+      text-shadow: 0px 0px 2px #ffffff;
+    }
+    
+    .form-control {
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+    .action-buttons {
+      position: sticky;
+      top: 10px;
+      z-index: 100;
+      background-color: rgba(248, 249, 250, 0.5);
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .required-field label::after {
+      content: " *";
+      color: red;
+    }
+    .api-key-field input {
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <h2 class="mb-4">虚拟主播配置面板</h2>
+    
+    <!-- Flash消息显示 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    
+    <!-- 导航栏 -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">虚拟主播配置中心</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="/">
+              <i class="bi bi-gear-fill"></i> 配置
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/check">
+              <i class="bi bi-check-circle"></i> 检查配置
+            </a>
+          </li>
+        </ul>
+        <div class="d-flex">
+          <a href="/export" class="btn btn-outline-light me-2">
+            <i class="bi bi-download"></i> 导出配置
+          </a>
+          <button type="button" class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="bi bi-upload"></i> 导入配置
+          </button>
+          <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#resetModal">
+            <i class="bi bi-trash"></i> 重置配置
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+    
+    <!-- 配置表单 -->
+    <form action="/save" method="post" class="needs-validation" novalidate>
+      <!-- 配置分类标签页 -->
+      <ul class="nav nav-tabs mb-3" id="configTabs" role="tablist">
+        {% for category, keys in categories.items() %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if loop.first %}active{% endif %}" 
+                  id="{{ category }}-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#{{ category }}" 
+                  type="button" 
+                  role="tab" 
+                  aria-controls="{{ category }}" 
+                  aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+            {{ category }}
+            
+            <!-- 如果该分类有缺失项，显示警告标记 -->
+            {% set has_missing = false %}
+            {% for key in keys %}
+              {% if key in missing %}
+                {% set has_missing = true %}
+              {% endif %}
+            {% endfor %}
+            
+            {% if has_missing %}
+              <span class="badge bg-warning text-dark ms-1">!</span>
+            {% endif %}
+          </button>
+        </li>
+        {% endfor %}
+      </ul>
+      
+      <!-- 标签页内容 -->
+      <div class="tab-content" id="configTabsContent">
+        {% for category, keys in categories.items() %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+             id="{{ category }}" 
+             role="tabpanel" 
+             aria-labelledby="{{ category }}-tab">
+          
+          <div class="config-section">
+            <h4 class="section-title">
+              {{ category }}
+              <!-- 为每个配置分类添加一键清除按钮 -->
+              <button type="button" class="btn btn-danger btn-sm float-end clear-section-btn" 
+                     data-section="{{ category }}">
+                <i class="bi bi-trash"></i> 一键清除本页配置
+              </button>
+            </h4>
+            
+            {% if category == "AI模型配置" %}
+              <!-- LLM模型顺序设置 -->
+              <div class="mb-4">
+                <label class="form-label fw-bold" for="DEFAULT.llm.order">{{ fields["DEFAULT.llm.order"] }}</label>
+                <input type="text" class="form-control" id="DEFAULT.llm.order" name="DEFAULT.llm.order" 
+                       value="{{ settings.get('DEFAULT.llm.order', '') }}" 
+                       placeholder="gemini,openai,deepseek,claude,local">
+                <div class="form-text">按启用顺序排列模型名称，用逗号分隔</div>
+              </div>
+              
+              <!-- LLM模型表格配置 -->
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                  <thead class="table-light">
+                    <tr>
+                      <th>模型</th>
+                      <th>是否启用</th>
+                      <th>API Key</th>
+                      <th>API Base URL / Endpoint</th>
+                      <th>默认模型</th>
+                      <th>代理 (可选)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Gemini -->
+                    <tr>
+                      <td class="align-middle fw-bold">gemini</td>
+                      <td class="align-middle">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" role="switch" 
+                                 id="DEFAULT.gemini.enable" name="DEFAULT.gemini.enable" value="yes"
+                                 {% if settings.get('DEFAULT.gemini.enable', '') == 'yes' %}checked{% endif %}>
+                        </div>
+                      </td>
+                      <td>
+                        <input type="password" class="form-control api-key-field" 
+                               id="DEFAULT.gemini.api_key" name="DEFAULT.gemini.api_key"
+                               value="{{ settings.get('DEFAULT.gemini.api_key', '') }}">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.gemini.api_base" name="DEFAULT.gemini.api_base"
+                               value="{{ settings.get('DEFAULT.gemini.api_base', 'https://api.bailili.top/v1') }}"
+                               placeholder="https://api.bailili.top/v1">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.gemini.model" name="DEFAULT.gemini.model"
+                               value="{{ settings.get('DEFAULT.gemini.model', 'gemini-2.5-pro') }}"
+                               placeholder="gemini-2.5-pro">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.gemini.proxy" name="DEFAULT.gemini.proxy"
+                               value="{{ settings.get('DEFAULT.gemini.proxy', '') }}"
+                               placeholder="http://127.0.0.1:7890">
+                      </td>
+                    </tr>
+                    
+                    <!-- DeepSeek -->
+                    <tr>
+                      <td class="align-middle fw-bold">deepseek</td>
+                      <td class="align-middle">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" role="switch" 
+                                 id="DEFAULT.deepseek.enable" name="DEFAULT.deepseek.enable" value="yes"
+                                 {% if settings.get('DEFAULT.deepseek.enable', '') == 'yes' %}checked{% endif %}>
+                        </div>
+                      </td>
+                      <td>
+                        <input type="password" class="form-control api-key-field" 
+                               id="DEFAULT.deepseek.api_key" name="DEFAULT.deepseek.api_key"
+                               value="{{ settings.get('DEFAULT.deepseek.api_key', '') }}">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.deepseek.api_base" name="DEFAULT.deepseek.api_base"
+                               value="{{ settings.get('DEFAULT.deepseek.api_base', 'https://api.deepseek.com/v1') }}"
+                               placeholder="https://api.deepseek.com/v1">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.deepseek.model" name="DEFAULT.deepseek.model"
+                               value="{{ settings.get('DEFAULT.deepseek.model', 'deepseek-chat') }}"
+                               placeholder="deepseek-chat">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.deepseek.proxy" name="DEFAULT.deepseek.proxy"
+                               value="{{ settings.get('DEFAULT.deepseek.proxy', '') }}"
+                               placeholder="http://127.0.0.1:7890">
+                      </td>
+                    </tr>
+                    
+                    <!-- OpenAI -->
+                    <tr>
+                      <td class="align-middle fw-bold">openai</td>
+                      <td class="align-middle">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" role="switch" 
+                                 id="DEFAULT.openai.enable" name="DEFAULT.openai.enable" value="yes"
+                                 {% if settings.get('DEFAULT.openai.enable', '') == 'yes' %}checked{% endif %}>
+                        </div>
+                      </td>
+                      <td>
+                        <input type="password" class="form-control api-key-field" 
+                               id="DEFAULT.openai.api_key" name="DEFAULT.openai.api_key"
+                               value="{{ settings.get('DEFAULT.openai.api_key', '') }}">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.openai.api_base" name="DEFAULT.openai.api_base"
+                               value="{{ settings.get('DEFAULT.openai.api_base', 'https://api.openai.com/v1') }}"
+                               placeholder="https://api.openai.com/v1">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.openai.model" name="DEFAULT.openai.model"
+                               value="{{ settings.get('DEFAULT.openai.model', 'gpt-4o') }}"
+                               placeholder="gpt-4o">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.openai.proxy" name="DEFAULT.openai.proxy"
+                               value="{{ settings.get('DEFAULT.openai.proxy', '') }}"
+                               placeholder="http://127.0.0.1:7890">
+                      </td>
+                    </tr>
+                    
+                    <!-- Claude -->
+                    <tr>
+                      <td class="align-middle fw-bold">claude</td>
+                      <td class="align-middle">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" role="switch" 
+                                 id="DEFAULT.claude.enable" name="DEFAULT.claude.enable" value="yes"
+                                 {% if settings.get('DEFAULT.claude.enable', '') == 'yes' %}checked{% endif %}>
+                        </div>
+                      </td>
+                      <td>
+                        <input type="password" class="form-control api-key-field" 
+                               id="DEFAULT.claude.api_key" name="DEFAULT.claude.api_key"
+                               value="{{ settings.get('DEFAULT.claude.api_key', '') }}">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.claude.api_base" name="DEFAULT.claude.api_base"
+                               value="{{ settings.get('DEFAULT.claude.api_base', 'https://api.anthropic.com/v1') }}"
+                               placeholder="https://api.anthropic.com/v1">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.claude.model" name="DEFAULT.claude.model"
+                               value="{{ settings.get('DEFAULT.claude.model', 'claude-3-opus-20240229') }}"
+                               placeholder="claude-3-opus-20240229">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.claude.proxy" name="DEFAULT.claude.proxy"
+                               value="{{ settings.get('DEFAULT.claude.proxy', '') }}"
+                               placeholder="http://127.0.0.1:7890">
+                      </td>
+                    </tr>
+                    
+                    <!-- Local -->
+                    <tr>
+                      <td class="align-middle fw-bold">local</td>
+                      <td class="align-middle">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" role="switch" 
+                                 id="DEFAULT.local.enable" name="DEFAULT.local.enable" value="yes"
+                                 {% if settings.get('DEFAULT.local.enable', '') == 'yes' %}checked{% endif %}>
+                        </div>
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" disabled
+                               placeholder="本地模型无需API Key">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.local.endpoint" name="DEFAULT.local.endpoint"
+                               value="{{ settings.get('DEFAULT.local.endpoint', 'http://127.0.0.1:8000') }}"
+                               placeholder="http://127.0.0.1:8000">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.local.model" name="DEFAULT.local.model"
+                               value="{{ settings.get('DEFAULT.local.model', 'local-model') }}"
+                               placeholder="local-model">
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" 
+                               id="DEFAULT.local.proxy" name="DEFAULT.local.proxy"
+                               value="{{ settings.get('DEFAULT.local.proxy', '') }}"
+                               placeholder="http://127.0.0.1:7890">
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> 
+                <strong>提示：</strong> 模型顺序决定了在一个模型不可用时的备选顺序。只有启用的模型才会被使用。
+              </div>
+            {% elif category == 'TTS配置' %}
+              <!-- TTS配置 -->
+              <div class="mb-3 {% if 'TTS.provider' in missing %}required-field{% endif %}">
+                <label class="form-label fw-bold" for="TTS.provider">{{ fields["TTS.provider"] }}</label>
+                <select class="form-select" id="TTS.provider" name="TTS.provider">
+                  <option value="edge" {% if settings.get('TTS.provider', '') == 'edge' %}selected{% endif %}>edge</option>
+                  <option value="vits" {% if settings.get('TTS.provider', '') == 'vits' %}selected{% endif %}>vits</option>
+                  <option value="bertvits" {% if settings.get('TTS.provider', '') == 'bertvits' %}selected{% endif %}>bertvits</option>
+                  <option value="gpt-sovits" {% if settings.get('TTS.provider', '') == 'gpt-sovits' %}selected{% endif %}>gpt-sovits</option>
+                </select>
+                {% if 'TTS.provider' in missing %}
+                <div class="form-text text-danger">此项为必填项</div>
+                {% endif %}
+              </div>
+              
+              <!-- VITS Simple API 设置 -->
+              <div class="card mb-4">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">VITS Simple API 设置</h5>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> 
+                    以下参数仅在使用 VITS Simple API 时有效
+                  </div>
+                  
+                  <!-- 音频格式设置 - 突出显示 -->
+                  <div class="mb-4 border p-3 bg-light">
+                    <h6 class="mb-2">音频格式设置</h6>
+                    <label class="form-label fw-bold" for="TTS.format">{{ fields["TTS.format"] }}</label>
+                    <select class="form-select" id="TTS.format" name="TTS.format">
+                      <option value="mp3" {% if settings.get('TTS.format', 'mp3') == 'mp3' %}selected{% endif %}>mp3</option>
+                      <option value="wav" {% if settings.get('TTS.format', '') == 'wav' %}selected{% endif %}>wav</option>
+                      <option value="ogg" {% if settings.get('TTS.format', '') == 'ogg' %}selected{% endif %}>ogg</option>
+                      <option value="silk" {% if settings.get('TTS.format', '') == 'silk' %}selected{% endif %}>silk</option>
+                      <option value="flac" {% if settings.get('TTS.format', '') == 'flac' %}selected{% endif %}>flac</option>
+                    </select>
+                    <div class="form-text">选择TTS生成的音频格式，支持mp3、wav、ogg、silk和flac</div>
+                  </div>
+                  
+                  <!-- 第三方 Simple API 设置 -->
+                  <div class="mb-4">
+                    <h6 class="mb-3">第三方 Simple API</h6>
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.url">{{ fields["TTS.url"] }}</label>
+                      <input type="text" class="form-control" id="TTS.url" name="TTS.url" 
+                             value="{{ settings.get('TTS.url', '') }}" 
+                             placeholder="https://artrajz-vits-simple-api.hf.space/voice/vits">
+                      <div class="form-text">常用API: <a href="https://artrajz-vits-simple-api.hf.space" target="_blank">artrajz</a>, <a href="https://dfsteve-vits-simple-api.hf.space" target="_blank">dfsteve</a>, <a href="https://moemoechu-vits-simple-api.hf.space" target="_blank">moemoechu</a></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.speaker_id">{{ fields["TTS.speaker_id"] }}</label>
+                      <input type="text" class="form-control" id="TTS.speaker_id" name="TTS.speaker_id" 
+                             value="{{ settings.get('TTS.speaker_id', '') }}" placeholder="0">
+                      <div class="form-text">可在API网站查看可用的说话人ID列表</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.lang">{{ fields["TTS.lang"] }}</label>
+                      <select class="form-select" id="TTS.lang" name="TTS.lang">
+                        <option value="auto" {% if settings.get('TTS.lang', 'auto') == 'auto' %}selected{% endif %}>auto - 自动检测</option>
+                        <option value="zh" {% if settings.get('TTS.lang', '') == 'zh' %}selected{% endif %}>zh - 中文</option>
+                        <option value="ja" {% if settings.get('TTS.lang', '') == 'ja' %}selected{% endif %}>ja - 日语</option>
+                        <option value="en" {% if settings.get('TTS.lang', '') == 'en' %}selected{% endif %}>en - 英语</option>
+                        <option value="mix" {% if settings.get('TTS.lang', '') == 'mix' %}selected{% endif %}>mix - 混合</option>
+                      </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.length">{{ fields["TTS.length"] }}</label>
+                      <input type="text" class="form-control" id="TTS.length" name="TTS.length" 
+                             value="{{ settings.get('TTS.length', '1.0') }}" placeholder="1.0">
+                      <div class="form-text">语音长度倍数，值越小语速越快</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.noise">{{ fields["TTS.noise"] }}</label>
+                      <input type="text" class="form-control" id="TTS.noise" name="TTS.noise" 
+                             value="{{ settings.get('TTS.noise', '0.667') }}" placeholder="0.667">
+                      <div class="form-text">噪声参数，影响音色，一般为0.667</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.noisew">{{ fields["TTS.noisew"] }}</label>
+                      <input type="text" class="form-control" id="TTS.noisew" name="TTS.noisew" 
+                             value="{{ settings.get('TTS.noisew', '0.8') }}" placeholder="0.8">
+                      <div class="form-text">噪声宽度参数，影响音色，一般为0.8</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.max">{{ fields["TTS.max"] }}</label>
+                      <input type="text" class="form-control" id="TTS.max" name="TTS.max" 
+                             value="{{ settings.get('TTS.max', '50') }}" placeholder="50">
+                      <div class="form-text">分段阈值，超过此值将文本分段处理。设为0或负数则不分段</div>
+                    </div>
+                  </div>
+                  
+                  <!-- 本地 Simple API 设置 -->
+                  <div class="mb-3">
+                    <h6 class="mb-3">本地 Simple API</h6>
+                    <div class="alert alert-secondary">
+                      <i class="bi bi-lightbulb"></i> 
+                      本地部署参考: <a href="https://github.com/Artrajz/vits-simple-api" target="_blank">Artrajz/vits-simple-api</a>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-bold" for="TTS.local_url">本地API地址</label>
+                      <input type="text" class="form-control" id="TTS.local_url" name="TTS.local_url" 
+                             value="{{ settings.get('TTS.local_url', '') }}" placeholder="http://127.0.0.1:23456/voice/vits">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Bert-VITS2 设置 -->
+              <div class="card mb-4">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">Bert-VITS2 设置</h5>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> 
+                    Bert-VITS2 是支持情感控制的高级语音合成模型
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.bertvits_url">Bert-VITS2 API地址</label>
+                    <input type="text" class="form-control" id="TTS.bertvits_url" name="TTS.bertvits_url" 
+                           value="{{ settings.get('TTS.bertvits_url', '') }}" placeholder="http://127.0.0.1:7860/voice/bert-vits2">
+                    <div class="form-text">本地部署参考: <a href="https://github.com/fishaudio/Bert-VITS2" target="_blank">fishaudio/Bert-VITS2</a></div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion">{{ fields["TTS.emotion"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion" name="TTS.emotion" 
+                           value="{{ settings.get('TTS.emotion', '') }}" placeholder="happy">
+                    <div class="form-text">情感参数，可选值取决于模型支持的情感类型</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- GPT-SoVITS 设置 -->
+              <div class="card mb-4">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">GPT-SoVITS 设置</h5>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> 
+                    GPT-SoVITS 是一种零样本语音合成模型，可以通过参考音频复制说话人的声音特征
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.gptsovits_url">GPT-SoVITS API地址</label>
+                    <input type="text" class="form-control" id="TTS.gptsovits_url" name="TTS.gptsovits_url" 
+                           value="{{ settings.get('TTS.gptsovits_url', '') }}" placeholder="http://127.0.0.1:9880/voice/gpt-sovits">
+                    <div class="form-text">本地部署参考: <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">RVC-Boss/GPT-SoVITS</a></div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.sdp_ratio">{{ fields["TTS.sdp_ratio"] }}</label>
+                    <input type="text" class="form-control" id="TTS.sdp_ratio" name="TTS.sdp_ratio" 
+                           value="{{ settings.get('TTS.sdp_ratio', '0.2') }}" placeholder="0.2">
+                    <div class="form-text">SDP比率参数，影响声音质量和相似度，一般为0.2-0.5</div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.ref_audio">{{ fields["TTS.ref_audio"] }}</label>
+                    <input type="text" class="form-control" id="TTS.ref_audio" name="TTS.ref_audio" 
+                           value="{{ settings.get('TTS.ref_audio', '') }}" placeholder="./reference_audio/normal.wav">
+                    <div class="form-text">参考音频路径，用于提取说话人声音特征</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 情感参考音频设置 -->
+              <div class="card mb-4">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">情感参考音频设置</h5>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> 
+                    当AI使用 <code>*[emotion]:喜悦*</code> 格式的内容时，会调用对应情绪的参考音频
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion_ref_audio_joy">{{ fields["TTS.emotion_ref_audio_joy"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion_ref_audio_joy" name="TTS.emotion_ref_audio_joy" 
+                           value="{{ settings.get('TTS.emotion_ref_audio_joy', '') }}" placeholder="./reference_audio/joy.wav">
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion_ref_audio_angry">{{ fields["TTS.emotion_ref_audio_angry"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion_ref_audio_angry" name="TTS.emotion_ref_audio_angry" 
+                           value="{{ settings.get('TTS.emotion_ref_audio_angry', '') }}" placeholder="./reference_audio/angry.wav">
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion_ref_audio_sad">{{ fields["TTS.emotion_ref_audio_sad"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion_ref_audio_sad" name="TTS.emotion_ref_audio_sad" 
+                           value="{{ settings.get('TTS.emotion_ref_audio_sad', '') }}" placeholder="./reference_audio/sad.wav">
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion_ref_audio_surprise">{{ fields["TTS.emotion_ref_audio_surprise"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion_ref_audio_surprise" name="TTS.emotion_ref_audio_surprise" 
+                           value="{{ settings.get('TTS.emotion_ref_audio_surprise', '') }}" placeholder="./reference_audio/surprise.wav">
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion_ref_audio_fear">{{ fields["TTS.emotion_ref_audio_fear"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion_ref_audio_fear" name="TTS.emotion_ref_audio_fear" 
+                           value="{{ settings.get('TTS.emotion_ref_audio_fear', '') }}" placeholder="./reference_audio/fear.wav">
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-bold" for="TTS.emotion_ref_audio_neutral">{{ fields["TTS.emotion_ref_audio_neutral"] }}</label>
+                    <input type="text" class="form-control" id="TTS.emotion_ref_audio_neutral" name="TTS.emotion_ref_audio_neutral" 
+                           value="{{ settings.get('TTS.emotion_ref_audio_neutral', '') }}" placeholder="./reference_audio/neutral.wav">
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              {% for key in keys %}
+              <div class="mb-3 {% if key in missing %}required-field{% endif %} {% if 'api_key' in key %}api-key-field{% endif %}">
+                <label class="form-label fw-bold" for="{{ key }}">{{ fields[key] }}</label>
+                
+                {% if 'api_key' in key %}
+                <input type="password" class="form-control" id="{{ key }}" name="{{ key }}" value="{{ settings.get(key, '') }}" />
+                {% else %}
+                <input type="text" class="form-control" id="{{ key }}" name="{{ key }}" value="{{ settings.get(key, '') }}" />
+                {% endif %}
+                
+                {% if key in missing %}
+                <div class="form-text text-danger">此项为必填项</div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+      <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <button type="submit" class="btn btn-primary btn-lg">
+          <i class="bi bi-save"></i> 保存配置
+        </button>
+      </div>
+    </form>
+    
+    <div class="mt-4 text-center text-muted">
+      <p>注意：修改配置后需要重启虚拟主播程序才能生效</p>
+      <p>表情控制无需配置，AI可直接使用 &lt;"表情名":on/off&gt; 格式控制</p>
+    </div>
+  </div>
+  
+  <!-- 导入配置模态框 -->
+  <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="importModalLabel">导入配置</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form action="/import" method="post" enctype="multipart/form-data">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="config_file" class="form-label">选择配置文件 (JSON格式)</label>
+              <input class="form-control" type="file" id="config_file" name="config_file" accept=".json">
+            </div>
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle"></i> 警告：导入将覆盖现有配置
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary">导入</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 重置配置模态框 -->
+  <div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="resetModalLabel">重置配置</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> 警告：此操作将清空所有配置，且无法恢复！
+          </div>
+          <p>确定要重置所有配置吗？</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <form action="/reset" method="post">
+            <button type="submit" class="btn btn-danger">确认重置</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 处理一键清除按钮点击事件
+      document.querySelectorAll('.clear-section-btn').forEach(button => {
+        button.addEventListener('click', function() {
+          const section = this.getAttribute('data-section');
+          
+          if (confirm(`确定要清除"${section}"页面的所有配置吗？此操作不可恢复！`)) {
+            // 创建一个表单并提交到清除接口
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/clear_section/${encodeURIComponent(section)}`;
+            document.body.appendChild(form);
+            form.submit();
+          }
+        });
+      });
+      
+      // 为所有输入框添加事件监听
+      document.querySelectorAll('input[type="text"], input[type="password"], textarea, select').forEach(input => {
+        // 添加blur（失去焦点）事件监听器
+        input.addEventListener('blur', function() {
+          // 如果输入框为空，添加标记
+          if (this.value.trim() === '') {
+            this.dataset.empty = 'true';
+          } else {
+            delete this.dataset.empty;
+          }
+        });
+        
+        // 添加input事件监听器，当用户输入内容时移除空标记
+        input.addEventListener('input', function() {
+          if (this.value.trim() !== '') {
+            delete this.dataset.empty;
+          }
+        });
+      });
+      
+      // 监听表单提交
+      document.querySelector('form').addEventListener('submit', function(e) {
+        // 处理所有标记为空的输入框
+        this.querySelectorAll('[data-empty="true"]').forEach(input => {
+          // 创建隐藏字段标记这是要清除的字段
+          const hiddenField = document.createElement('input');
+          hiddenField.type = 'hidden';
+          hiddenField.name = input.name + '_clear';
+          hiddenField.value = 'true';
+          this.appendChild(hiddenField);
+        });
+      });
+    });
+  </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

@@ -1,0 +1,14 @@
+body {
+  margin: 0;
+  background: rgba(0,0,0,0);
+  overflow: hidden;
+}
+
+#txt {
+  font-size: 32px;
+  color: #ff8ad7; /* 粉色，可按需修改 */
+  text-shadow: 2px 2px 4px #000;
+  font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
+  white-space: pre-wrap;
+  padding: 10px;
+} 
